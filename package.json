@@ -1,7 +1,7 @@
 {
   "name": "sass-unpack",
   "version": "0.1.0",
-  "description": "generate a sass unpack with all file dependencies",
+  "description": "Sass Unpack cut a sass project in multiple css files",
   "license": "MIT",
   "repository": {
     "type": "git",
