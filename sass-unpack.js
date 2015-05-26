@@ -3,227 +3,218 @@
 var path = require('path');
 var _ = require('lodash');
 var glob = require('glob');
+var fs = require('fs');
+var util = require('util');
+
+function SassUnpack(options) {
+
+  this.filepath = path.resolve(options.src);
+
+  if (fs.lstatSync(this.filepath).isFile()) {
+
+    options = processOptions(options);
+
+    this.dest = options.dest || false ;
+    this.dir = path.resolve(path.dirname(this.filepath));
+    this.loadPaths = options.loadPaths || [];
+    this.extensions = options.extensions || [];
+    this.index = [];
+    this.link = [];
+
+  }
+};
+
+SassUnpack.prototype.unpackTo = function(options) {
+
+	var toPath = options.dest;
+	var urlRoot = options.urlRoot;
+
+  var SassMap = require('sass-map');
+
+  var mapSass =  new SassMap(this.filepath);
 
 
-function unpack( ){
-  var fs = require('fs'),
-      path = require('path'),
-      combineSourceMap = require('combine-source-map'),
-      mkdirp = require('mkdirp'),
-      paths  = require('./paths'),
-      dest = paths.THEME,
-      sassSrc = paths.build.css.screen.replace('./', ''),
-      dev = 'dev',
-      build = 'build';
-    var map = [];
+  fs.writeFileSync(path.resolve('./') + '/dist/mapsass.json', util.inspect(mapSass, { showHidden: true, depth: null }));
 
-    mkdirp.sync('./' + build + '/' + dev);
+  var files = this.cutSourceFileWithMap(this.filepath, mapSass);
 
-    var SassGraph = require('sass-graph');
-    var SassVar = [];
-    var SassExtend = [];
-    var SassUnpack = [];
+  this.dir = path.resolve(toPath);
 
-    var contentMain = "";
+  return this.generateFiles(files, mapSass, this.dir, urlRoot);
 
-    var SassUnpack = SassUnpack.parseFile(path.resolve('./',sassSrc));
+};
 
-    var src = fs.readFileSync(sassSrc, 'utf8');
-    var position = 0;
-    var regImport = /\@import [\'|\"]([a-zA-Z0-9-\._\/]+)[\'|\"]/;
+SassUnpack.prototype.cutSourceFileWithMap = function(srcFilePath, mapSass) {
 
-    var cssClass = [];
+  var result = {
+    main: {
+      source: '',
+    },
+    packages: []
+  };
 
-    var todo = [];
-    src.split('\n').forEach(function(line, iLine) {
+  var content = fs.readFileSync(srcFilePath, 'utf8');
+  content = content.replace(/\/\*.+?\*\/|\/\/.*(?=[\n\r])/g, '');
 
-      //  console.log(position);
-      if (line[0] !== '/') {
+  var position = 0;
+  var regImport = /\@import [\'|\"]([a-zA-Z0-9-\._\/]+)[\'|\"]/;
 
-        line = line.trim();
-        var matchImport = regImport.exec(line);
+  var cssClass = [];
+  var packages = [];
+  var source = [];
 
-        if (matchImport) {
-          var importFile = matchImport[1].trim();
-          if (importFile[0] !== '.' && importFile[0] !== '/') {
-            importFile = './' + importFile;
-          }
-          if (importFile.indexOf('.scss') == -1) {
-            importFile = importFile + '.scss';
-          }
-          var importFilePath = path.resolve(path.dirname(sassSrc), importFile).replace(path.resolve('./') + '/', '');
+  		 var loadPaths = _([this.dir]).concat(this.loadPaths).filter().uniq().value();
 
-          if (SassUnpack[importFilePath] == undefined) {
+  content.split('\n').forEach(function(line, iLine) {
 
-            SassUnpack[importFilePath] = {
-              include: []
-            };
-          }
+    line = line.trim();
+    var matchImport = regImport.exec(line);
 
-          SassUnpack[importFilePath].line = '@import \'' + path.resolve('./') + '/' + importFilePath + '\';';
-          SassUnpack[importFilePath].index = iLine;
-          SassUnpack[importFilePath].name = importFilePath.split('/').join('-');
-          SassUnpack[importFilePath].css = cssClass.slice(0, cssClass.length);
+    if (matchImport) {
 
-          if (SassUnpack[mainFile].links.indexOf(importFilePath) >= 0) {
-            contentMain += '@import \'' + path.resolve('./') + '/' + importFilePath + '\';\n';
-          } else {
-            todo.push(importFilePath);
-          }
+      var importFilePath = resolveSassPath(matchImport[1].trim(), loadPaths, this.extensions);
+		 
+      if (importFilePath) {
+        var importLine = '@import \'' + importFilePath + '\';';
 
+        var file = {
+          line: importLine,
+          index: iLine,
+          path:  importFilePath,
+          css: cssClass.slice(0, cssClass.length)
+        };
+
+        if (mapSass.index[this.filepath].dependencies.indexOf(importFilePath) >= 0) {
+          source.push(importLine);
         } else {
-
-          contentMain += line + '\n';
-
+          packages.push(file);
         }
+      }else {
+        throw new Error('Impossible to resolve Sass Path  in ' + this.filepath + ' - line : ' + iLine + ' \n ' + line);
+      }
 
-        var open = line.match(/\{/g) || [];
-        var close = line.match(/\}/g) || [];
-        position += open.length;
-        position -= close.length;
+    } else {
+      source.push(line);
+    }
 
-        if (position != cssClass.length) {
-          if (position > cssClass.length) {
-            cssClass.push(line.trim());
-          } else {
-            cssClass.pop();
-          }
-        }
+    var open = line.match(/\{/g) || [];
+    var close = line.match(/\}/g) || [];
+    position += open.length;
+    position -= close.length;
+
+    if (position != cssClass.length) {
+      if (position > cssClass.length) {
+        cssClass.push(line);
+      } else {
+        cssClass.pop();
+      }
+    }
+  }.bind(this));
+
+  result.main.source = source.join('\n');
+  result.packages = packages;
+
+  return result;
+
+};
+
+function addToIndex(mapIndex, filepath, link) {
+  if (mapIndex[filepath] === undefined) {
+    mapIndex[filepath] = [];
+  }
+
+  if (mapIndex[filepath].indexOf(link) == -1) {
+    mapIndex[filepath].push(link);
+  }
+}
+
+SassUnpack.prototype.generateFiles = function(files, mapSass, toPath, urlRoot) {
+
+  var mkdirp = require('mkdirp');
+
+  var mapIndex = [];
+  var indexFile = 0;
+  var map = [];
+  var devFilePath = toPath + '/dev/sass/' + indexFile + '.scss';
+  var devFileCSSUrl = urlRoot+'/dev/css/' + indexFile + '.css';
+
+  map.push({
+    file: devFilePath,
+    href: devFileCSSUrl
+  });
+
+  mkdirp.sync(path.dirname(devFilePath));
+
+  fs.writeFileSync(devFilePath, files.main.source);
+
+  files.packages.forEach(function(file) {
+
+    //console.log(mapSass[file.path]);
+    file = _.assign(mapSass.index[file.path], file);
+
+    indexFile++;
+    var devFileCSSUrl = urlRoot + '/dev/css/' + indexFile + '.css';
+    var devFilePath = toPath + '/dev/sass/' + indexFile + '.scss';
+
+    addToIndex(mapIndex, file.path, devFilePath);
+
+    var fileContent = [];
+
+    file.dependencies.forEach(function(item) {
+      if (file.path !== item) {
+      	addToIndex(mapIndex, item, devFilePath);
+        fileContent.push('@import \'' + item + '\';');
       }
     });
 
+    file.imports.forEach(function(item) {
+      addToIndex(mapIndex, item, devFilePath);
+    });
 
-    var mapIndex = [];
-    var indexFile = 0;
-    var devFileUrl = '/' + dev + '/sass/' + indexFile + '.scss';
-    var devFilePath = './' + build + devFileUrl;
-    var devFileCSSUrl = '/' + dev + '/css/' + indexFile + '.css';
+    file.extended.forEach(function(item) {
+       if (file.path !== item) {
+      	addToIndex(mapIndex, item, devFilePath);
+        fileContent.push('@import \'' + item + '\';');
+      }
+    }.bind(this));
+
+    fileContent.push('/* unsass */');
+
+    var cssContent = [];
+    file.css.forEach(function(cssClass) {
+      cssContent.push(cssClass);
+    });
+
+    cssContent.push(file.line);
+
+    file.css.forEach(function(cssClass) {
+      cssContent.push('}');
+    });
+
+    fileContent.push(cssContent.join('\n'));
+
+    fs.writeFileSync(devFilePath, fileContent.join('\n'));
 
     map.push({
       file: devFilePath,
       href: devFileCSSUrl
     });
 
+  }.bind(this));
 
-    mkdirp.sync(path.dirname(devFilePath));
+  var buf  = [];
 
-    fs.writeFileSync(devFilePath, contentMain);
-
-
-    function addToIndex(filepath,link){
-
-
-       if(mapIndex[filepath] == undefined){
-        mapIndex[filepath] = [];
-      }
-
-      if(mapIndex[filepath].indexOf(link)== -1){
-        mapIndex[filepath].push(link);
-      }
-
-    }
-
-    todo.forEach(function(filepath) {
-
-      var file = SassUnpack[filepath];
-
-      indexFile++;
-      var devFileUrl = '/' + dev + '/sass/' + indexFile + '_' + file.name;
-      var devFileCSSUrl = '/' + dev + '/css/' + indexFile + '_' + file.name.replace('.scss', '.css');
-
-      var devFilePath = './' + build + devFileUrl;
-
-      addToIndex(filepath,devFilePath);
-
-      var fileContent = [];
-
-      file.include.forEach(function(item) {
-
-         addToIndex(item,devFilePath);
-
-         fileContent.push('@import \'' + path.resolve('./') + '/' + item + '\';');
-      });
-
-      file.imports.forEach(function(item) {
-         addToIndex(item,devFilePath);
-      });
-
-
-      file.extend.forEach(function(index) {
-        if (SassExtend[index] != undefined) {
-
-          SassExtend[index].forEach(function(indexExtended) {
-            if (indexExtended != filepath) {
-              var fileExtended = SassUnpack[indexExtended];
-
-              fileExtended.include.forEach(function(itemExtented) {
-                if(file.include.indexOf(itemExtented) == -1){
-                    addToIndex(itemExtented,devFilePath);
-
-                 fileContent.push('@import \'' + path.resolve('./') + '/' + itemExtented + '\';');
-                }
-              });
-
-              var cssContent = [];
-              fileExtended.css.forEach(function(cssClass) {
-                cssContent.push(cssClass);
-              });
-
-              cssContent.push(fileExtended.line);
-
-              fileExtended.css.forEach(function(cssClass) {
-                cssContent.push('}');
-              });
-
-              fileContent.push(cssContent.join('\n'));
-            }
-
-          });
-        }
-
-
-      });
-
-      fileContent.push('/* unsass */');
-
-      var cssContent = [];
-      file.css.forEach(function(cssClass) {
-        cssContent.push(cssClass);
-      });
-
-      cssContent.push(file.line);
-
-      file.css.forEach(function(cssClass) {
-        cssContent.push('}');
-      });
-
-      fileContent.push(cssContent.join('\n'));
-
-      fs.writeFileSync(devFilePath, fileContent.join('\n'));
-
-      map.push({
-        file: devFilePath,
-        href: devFileCSSUrl
-      });
-
-
+  for (var i in mapIndex) {
+    buf.push({
+      index: i,
+      links: _.uniq(mapIndex[i])
     });
+  }
 
-
-    var buf  = [];
-
-    for (var i in mapIndex) {
-        buf.push({
-            "index": i,
-            "links": mapIndex[i]
-        });
-    }
-
-
-    fs.writeFileSync(path.resolve('./') + '/' + build + '/href.json', JSON.stringify(map));
-
-    fs.writeFileSync(path.resolve('./') + '/' + build + '/sass.json',JSON.stringify(buf) );
-}
+  return {
+    href: map,
+    sass: buf
+  };
 }
 
 // resolve a sass module to a path
@@ -232,9 +223,12 @@ function resolveSassPath(sassPath, loadPaths, extensions) {
   // trim sass file extensions
   var re = new RegExp('(\.(' + extensions.join('|') + '))$', 'i');
   var sassPathName = sassPath.replace(re, '');
+
   // check all load paths
+  // 
+  
   var i, j, length = loadPaths.length,
-    scssPath, partialPath;
+	scssPath, partialPath;
   for (i = 0; i < length; i++) {
     for (j = 0; j < extensions.length; j++) {
       scssPath = path.normalize(loadPaths[i] + '/' + sassPathName + '.' + extensions[j]);
@@ -257,86 +251,6 @@ function resolveSassPath(sassPath, loadPaths, extensions) {
   return false;
 }
 
-function SassUnpack(options, dir) {
-  this.dir = dir;
-  this.loadPaths = options.loadPaths || [];
-  this.extensions = options.extensions || [];
-  this.index = [];
-  this.link = [];
-
-  if (dir) {
-    var map = this;
-    _(glob.sync(dir + '/**/*.@(' + this.extensions.join('|') + ')', {
-      dot: true
-    })).forEach(function(file) {
-      map.addFile(path.resolve(file));
-    }).value();
-  }
-};
-
-SassUnpack.prototype.getIncludedLink = function (filepath) {
-
-      var importsLinks = [];
-
-      var file = this.index[filepath];
-
-      importsLinks = importsLinks.concat(file.links);
-
-      for (var i in file.imports) {
-        var link = file.imports[i];
-       // console.log(link);
-        importsLinks = importsLinks.concat(this.getIncludedLink(link));
-      }
-
-      return importsLinks;
-}
-
-// add a sass file to the SassUnpack
-SassUnpack.prototype.addFile = function(filepath, parent) {
-  var entry = parseData(fs.readFileSync(filepath, 'utf-8'));
-  var cwd = path.dirname(filepath);
-
-  var i, length = entry.imports.length,
-    loadPaths, resolved;
-  for (i = 0; i < length; i++) {
-    loadPaths = _([cwd, this.dir]).concat(this.loadPaths).filter().uniq().value();
-    resolved = resolveSassPath(entry.imports[i], loadPaths, this.extensions);
-    if (!resolved) continue;
-
-
-    // recurse into dependencies if not already enumerated
-    if (!_.contains(entry.imports, resolved)) {
-      entry.imports[i]= resolved;
-      this.addFile(fs.realpathSync(resolved), filepath);
-    }
-
-  }
-
-  this.registerLink(filepath,entry.property);
-
-  this.index[filepath] = entry;
-
-};
-
-// a generic visitor that uses an edgeCallback to find the edges to traverse for a node
-SassUnpack.prototype.visit = function(filepath, callback, edgeCallback, visited) {
-  filepath = fs.realpathSync(filepath);
-  var visited = visited || [];
-  if (!this.index.hasOwnProperty(filepath)) {
-    edgeCallback('SassUnpack doesn\'t contain ' + filepath, null);
-  }
-  var edges = edgeCallback(null, this.index[filepath]);
-
-  var i, length = edges.length;
-  for (i = 0; i < length; i++) {
-    if (!_.contains(visited, edges[i])) {
-      visited.push(edges[i]);
-      callback(edges[i], this.index[edges[i]]);
-      this.visit(edges[i], callback, edgeCallback, visited);
-    }
-  }
-};
-
 function processOptions(options) {
   return _.assign({
     loadPaths: [process.cwd()],
@@ -344,26 +258,5 @@ function processOptions(options) {
   }, options);
 }
 
-module.exports.parseFile = function(filepath, options) {
-  if (fs.lstatSync(filepath).isFile()) {
-    filepath = path.resolve(filepath);
-    options = processOptions(options);
-    var map = new SassUnpack(options);
-    map.addFile(filepath);
-    map.resolveLink();
-    return map;
-  }
-  // throws
-};
+module.exports =  SassUnpack;
 
-
-
-module.exports.parseDir = function(dirpath, options) {
-  if (fs.lstatSync(dirpath).isDirectory()) {
-    dirpath = path.resolve(dirpath);
-    options = processOptions(options);
-    var map = SassUnpack(options, dirpath);
-    return map;
-  }
-  // throws
-};
