@@ -23,7 +23,7 @@
     "lodash": "^3.8.0",
     "yargs": "^3.8.0",
     "mkdirp": "^0.5.1",
-    "sass-map": "^0.2.0"
+    "sass-map": "^0.2.2"
   },
   "devDependencies": {
     "assert": "^1.3.0",
