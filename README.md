@@ -15,7 +15,24 @@ npm install --save-dev sass-unpack
 Usage as a Node library:
 
 ```js
-var sassUnpack = require('sass-unpack');
+ var fs = require('fs'),
+      path = require('path'),
+      paths  = require('./paths');
+
+var SassUnpack = require('sass-unpack');
+
+var Package = new SassUnpack({
+    src : paths.build.css.screen
+});
+
+var map = Package.unpackTo({
+    dest :paths.build.dest,
+    urlRoot : '/'+paths.THEME
+  });
+
+fs.writeFileSync(path.resolve(paths.build.dir) + '/href.json', JSON.stringify(map.href));
+fs.writeFileSync(path.resolve(paths.build.dir) + '/sass.json',JSON.stringify(map.sass) );
+
 ```
 
 ## Authors

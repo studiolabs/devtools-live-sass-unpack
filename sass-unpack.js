@@ -26,7 +26,7 @@ function SassUnpack(options) {
 
 SassUnpack.prototype.unpackTo = function(options) {
 
-	var toPath = options.dest;
+	var toPath = path.resolve(options.dest);
 	var urlRoot = options.urlRoot;
 
   var SassMap = require('sass-map');
@@ -73,7 +73,7 @@ SassUnpack.prototype.cutSourceFileWithMap = function(srcFilePath, mapSass) {
     if (matchImport) {
 
       var importFilePath = resolveSassPath(matchImport[1].trim(), loadPaths, this.extensions);
-		 
+
       if (importFilePath) {
         var importLine = '@import \'' + importFilePath + '\';';
 
@@ -136,7 +136,10 @@ SassUnpack.prototype.generateFiles = function(files, mapSass, toPath, urlRoot) {
   var indexFile = 0;
   var map = [];
 
-  var devFilePath = toPath + '/dev/sass/index.scss';
+  mkdirp.sync(toPath + '/dev/scss/');
+  mkdirp.sync(toPath + '/dev/css/');
+
+  var devFilePath = toPath + '/dev/scss/index.scss';
   var devFileCSSUrl = urlRoot+'/dev/css/index.css';
 
   map.push({
@@ -144,23 +147,25 @@ SassUnpack.prototype.generateFiles = function(files, mapSass, toPath, urlRoot) {
     href: devFileCSSUrl
   });
 
-  mkdirp.sync(path.dirname(devFilePath));
 
   fs.writeFileSync(devFilePath, files.main.source);
+
 
   files.packages.forEach(function(file) {
 
     //console.log(mapSass[file.path]);
     //
-  
+
     file = _.assign(mapSass.index[file.path], file);
 
     var fileName =  file.path.replace(path.resolve('./')+ '/', '')
-                            .replace('/', '-')
+                            .replace(/\//g, '-')
                             .replace(path.extname(file.path),'');
 
     var devFileCSSUrl = urlRoot + '/dev/css/' + fileName + '.css';
     var devFilePath = toPath + '/dev/scss/' + fileName + '.scss';
+
+
 
     addToIndex(mapIndex, file.path, devFilePath);
 
@@ -231,8 +236,8 @@ function resolveSassPath(sassPath, loadPaths, extensions) {
   var sassPathName = sassPath.replace(re, '');
 
   // check all load paths
-  // 
-  
+  //
+
   var i, j, length = loadPaths.length,
 	scssPath, partialPath;
   for (i = 0; i < length; i++) {
