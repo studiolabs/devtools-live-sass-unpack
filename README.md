@@ -41,4 +41,4 @@ fs.writeFileSync(path.resolve(paths.build.dir) + '/sass.json',JSON.stringify(map
 
 ## License
 
-MIT
+BSD
