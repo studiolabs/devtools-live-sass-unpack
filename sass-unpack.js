@@ -135,8 +135,9 @@ SassUnpack.prototype.generateFiles = function(files, mapSass, toPath, urlRoot) {
   var mapIndex = [];
   var indexFile = 0;
   var map = [];
-  var devFilePath = toPath + '/dev/sass/' + indexFile + '.scss';
-  var devFileCSSUrl = urlRoot+'/dev/css/' + indexFile + '.css';
+
+  var devFilePath = toPath + '/dev/sass/index.scss';
+  var devFileCSSUrl = urlRoot+'/dev/css/index.css';
 
   map.push({
     file: devFilePath,
@@ -150,11 +151,16 @@ SassUnpack.prototype.generateFiles = function(files, mapSass, toPath, urlRoot) {
   files.packages.forEach(function(file) {
 
     //console.log(mapSass[file.path]);
+    //
+  
     file = _.assign(mapSass.index[file.path], file);
 
-    indexFile++;
-    var devFileCSSUrl = urlRoot + '/dev/css/' + indexFile + '.css';
-    var devFilePath = toPath + '/dev/sass/' + indexFile + '.scss';
+    var fileName =  file.path.replace(path.resolve('./')+ '/', '')
+                            .replace('/', '-')
+                            .replace(path.extname(file.path),'');
+
+    var devFileCSSUrl = urlRoot + '/dev/css/' + fileName + '.css';
+    var devFilePath = toPath + '/dev/scss/' + fileName + '.scss';
 
     addToIndex(mapIndex, file.path, devFilePath);
 
