@@ -33,9 +33,6 @@ SassUnpack.prototype.unpackTo = function(options) {
 
   var mapSass =  new SassMap(this.filepath);
 
-
-  fs.writeFileSync(path.resolve('./') + '/dist/mapsass.json', util.inspect(mapSass, { showHidden: true, depth: null }));
-
   var files = this.cutSourceFileWithMap(this.filepath, mapSass);
 
   this.dir = path.resolve(toPath);
