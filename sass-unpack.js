@@ -27,7 +27,6 @@ function SassUnpack(options) {
 SassUnpack.prototype.unpackTo = function(options) {
 
 	var toPath = path.resolve(options.dest);
-	var urlRoot = options.urlRoot;
 
   var SassMap = require('sass-map');
 
@@ -37,7 +36,7 @@ SassUnpack.prototype.unpackTo = function(options) {
 
   this.dir = path.resolve(toPath);
 
-  return this.generateFiles(files, mapSass, this.dir, urlRoot);
+  return this.generateFiles(files, mapSass, this.dir);
 
 };
 
@@ -125,7 +124,7 @@ function addToIndex(mapIndex, filepath, link) {
   }
 }
 
-SassUnpack.prototype.generateFiles = function(files, mapSass, toPath, urlRoot) {
+SassUnpack.prototype.generateFiles = function(files, mapSass, toPath) {
 
   var mkdirp = require('mkdirp');
 
@@ -137,7 +136,7 @@ SassUnpack.prototype.generateFiles = function(files, mapSass, toPath, urlRoot) {
   mkdirp.sync(toPath + '/dev/css/');
 
   var devFilePath = toPath + '/dev/scss/index.scss';
-  var devFileCSSUrl = urlRoot+'/dev/css/index.css';
+  var devFileCSSUrl = 'dev/css/index.css';
 
   map.push({
     file: devFilePath,
@@ -159,7 +158,7 @@ SassUnpack.prototype.generateFiles = function(files, mapSass, toPath, urlRoot) {
                             .replace(/\//g, '-')
                             .replace(path.extname(file.path),'');
 
-    var devFileCSSUrl = urlRoot + '/dev/css/' + fileName + '.css';
+    var devFileCSSUrl = 'dev/css/' + fileName + '.css';
     var devFilePath = toPath + '/dev/scss/' + fileName + '.scss';
 
 
