@@ -15,6 +15,8 @@ function SassUnpack(options) {
     options = processOptions(options);
 
     this.dest = options.dest || false ;
+    this.name = options.name || 'dev' ;
+    this.verbose = options.verbose || false ;
     this.dir = path.resolve(path.dirname(this.filepath));
     this.loadPaths = options.loadPaths || [];
     this.extensions = options.extensions || [];
@@ -26,15 +28,39 @@ function SassUnpack(options) {
 
 SassUnpack.prototype.unpackTo = function(options) {
 
+    if(this.verbose){
+    var ProgressBar = require('progress');
+    var barOpts = {
+     width: 30,
+     total: 100,
+     clear: true
+   };
+
+   this.bar = new ProgressBar('Unpacking... [:bar] :percent', barOpts);
+  }
+
+  if(this.verbose){
+    this.bar.tick(1);
+  }
+
+
 	var toPath = path.resolve(options.dest);
 
   var SassMap = require('sass-map');
 
   var mapSass =  new SassMap(this.filepath);
 
+  if(this.verbose){
+    this.bar.tick(30);
+  }
+
   var files = this.cutSourceFileWithMap(this.filepath, mapSass);
 
   this.dir = path.resolve(toPath);
+
+  if(this.verbose){
+    this.bar.tick(50);
+  }
 
   return this.generateFiles(files, mapSass, this.dir);
 
@@ -59,7 +85,7 @@ SassUnpack.prototype.cutSourceFileWithMap = function(srcFilePath, mapSass) {
   var packages = [];
   var source = [];
 
-  		 var loadPaths = _([this.dir]).concat(this.loadPaths).filter().uniq().value();
+  var loadPaths = _([this.dir]).concat(this.loadPaths).filter().uniq().value();
 
   content.split('\n').forEach(function(line, iLine) {
 
@@ -132,16 +158,17 @@ SassUnpack.prototype.generateFiles = function(files, mapSass, toPath) {
   var indexFile = 0;
   var map = [];
 
-  mkdirp.sync(toPath + '/dev/scss/');
-  mkdirp.sync(toPath + '/dev/css/');
+  mkdirp.sync(toPath + '/'+this.name+'/scss/');
+  mkdirp.sync(toPath + '/'+this.name+'/css/');
 
-  var devFilePath = toPath + '/dev/scss/index.scss';
-  var devFileCSSUrl = 'dev/css/index.css';
+  var devFilePath = toPath + '/'+this.name+'/scss/index.scss';
+  var devFileCSSUrl = this.name+'/css/index.css';
 
   map.push({
     file: devFilePath,
     href: devFileCSSUrl
   });
+
 
 
   fs.writeFileSync(devFilePath, files.main.source);
@@ -158,8 +185,8 @@ SassUnpack.prototype.generateFiles = function(files, mapSass, toPath) {
                             .replace(/\//g, '-')
                             .replace(path.extname(file.path),'');
 
-    var devFileCSSUrl = 'dev/css/' + fileName + '.css';
-    var devFilePath = toPath + '/dev/scss/' + fileName + '.scss';
+    var devFileCSSUrl = this.name+'/css/' + fileName + '.css';
+    var devFilePath = toPath + '/'+this.name+'/scss/' + fileName + '.scss';
 
 
 
@@ -216,6 +243,10 @@ SassUnpack.prototype.generateFiles = function(files, mapSass, toPath) {
       index: i,
       links: _.uniq(mapIndex[i])
     });
+  }
+
+  if(this.verbose){
+    this.bar.tick(100);
   }
 
   return {
