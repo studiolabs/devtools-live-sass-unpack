@@ -34,6 +34,28 @@ fs.writeFileSync(path.resolve(paths.build.dir) + '/href.json', JSON.stringify(ma
 fs.writeFileSync(path.resolve(paths.build.dir) + '/sass.json',JSON.stringify(map.sass) );
 ```
 
+Usage as a command line tool:
+
+```
+$ sassunpack --help
+Usage: sassunpack -f <file> [options]
+
+Options:
+  -d, --destination  Path to save the output ( map.json + href.json + files)
+          [défaut: "/Volumes/WORKSPACE/Dropbox/www/dev/project/photobox/studio"]
+  -f, --file         File to unpack                                     [requis]
+  -n, --name         Output directory name                       [défaut: "dev"]
+  -v, --verbose      Debug                                       [défaut: false]
+  --version          Affiche le numéro de version                      [booléen]
+  -h, --help         Affiche de l'aide                                 [booléen]
+
+Exemples:
+  sassunpack -f foo.scss  Cut a sass project in multiple css files
+
+```
+
+
+
 ## Authors
 
 [Steed Monteiro](http://twitter.com/SteedMonteiro).
