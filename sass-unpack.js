@@ -5,6 +5,7 @@ var _ = require('lodash');
 var glob = require('glob');
 var fs = require('fs');
 var util = require('util');
+var mkdirp = require('mkdirp');
 
 function SassUnpack(options) {
 
@@ -13,11 +14,15 @@ function SassUnpack(options) {
   if (fs.lstatSync(this.filepath).isFile()) {
 
     options = processOptions(options);
-
-    this.dest = options.dest || false ;
-    this.name = options.name || 'dev' ;
-    this.verbose = options.verbose || false ;
-    this.dir = path.resolve(path.dirname(this.filepath));
+	this.name = options.name || '_' +path.basename(this.filepath)+'_';
+	this.bVerbose = options.verbose || false ;
+	this.bMap = options.map || false ;
+	this.bHref = options.href || false ;
+	this.bSourceMap = options.sourcemap || false ;
+	this.sourceDir = path.resolve( options.directory || path.dirname(this.filepath)) + '/';
+	this.write = options.write || fs.writeFileSync ;
+	this.mkdir = options.mkdir || mkdirp.sync ;
+	this.output = path.resolve( options.output || path.dirname(this.filepath));
     this.loadPaths = options.loadPaths || [];
     this.extensions = options.extensions || [];
     this.index = [];
@@ -26,43 +31,27 @@ function SassUnpack(options) {
   }
 };
 
-SassUnpack.prototype.unpackTo = function(options) {
+SassUnpack.prototype.unpack = function() {
 
-    if(this.verbose){
-    var ProgressBar = require('progress');
-    var barOpts = {
-     width: 30,
-     total: 100,
-     clear: true
-   };
+	if (this.bVerbose) {
+		console.log("Reading file...")
+	}
 
-   this.bar = new ProgressBar('Unpacking... [:bar] :percent', barOpts);
-  }
+  	var SassMap = require('sass-map');
 
-  if(this.verbose){
-    this.bar.tick(1);
-  }
+  	var mapSass =  new SassMap(this.filepath);
 
+	if (this.bVerbose) {
+		console.log("Unpacking...")
+	}
 
-	var toPath = path.resolve(options.dest);
+  	var files = this.cutSourceFileWithMap(this.filepath, mapSass);
 
-  var SassMap = require('sass-map');
+ 	if (this.bVerbose) {
+		console.log("Saving Files...")
+	}
 
-  var mapSass =  new SassMap(this.filepath);
-
-  if(this.verbose){
-    this.bar.tick(30);
-  }
-
-  var files = this.cutSourceFileWithMap(this.filepath, mapSass);
-
-  this.dir = path.resolve(toPath);
-
-  if(this.verbose){
-    this.bar.tick(50);
-  }
-
-  return this.generateFiles(files, mapSass, this.dir);
+  return this.generateFiles(files, mapSass, this.output);
 
 };
 
@@ -85,7 +74,7 @@ SassUnpack.prototype.cutSourceFileWithMap = function(srcFilePath, mapSass) {
   var packages = [];
   var source = [];
 
-  var loadPaths = _([this.dir]).concat(this.loadPaths).filter().uniq().value();
+  var loadPaths = _([this.sourceDir]).concat(this.loadPaths).filter().uniq().value();
 
   content.split('\n').forEach(function(line, iLine) {
 
@@ -152,14 +141,12 @@ function addToIndex(mapIndex, filepath, link) {
 
 SassUnpack.prototype.generateFiles = function(files, mapSass, toPath) {
 
-  var mkdirp = require('mkdirp');
-
   var mapIndex = [];
   var indexFile = 0;
   var map = [];
 
-  mkdirp.sync(toPath + '/'+this.name+'/scss/');
-  mkdirp.sync(toPath + '/'+this.name+'/css/');
+  this.mkdir(toPath + '/'+this.name+'/scss/');
+  this.mkdir(toPath + '/'+this.name+'/css/');
 
   var devFilePath = toPath + '/'+this.name+'/scss/index.scss';
   var devFileCSSUrl = this.name+'/css/index.css';
@@ -171,7 +158,7 @@ SassUnpack.prototype.generateFiles = function(files, mapSass, toPath) {
 
 
 
-  fs.writeFileSync(devFilePath, files.main.source);
+  this.write(devFilePath, files.main.source);
 
 
   files.packages.forEach(function(file) {
@@ -227,7 +214,7 @@ SassUnpack.prototype.generateFiles = function(files, mapSass, toPath) {
 
     fileContent.push(cssContent.join('\n'));
 
-    fs.writeFileSync(devFilePath, fileContent.join('\n'));
+    this.write(devFilePath, fileContent.join('\n'));
 
     map.push({
       file: devFilePath,
@@ -245,14 +232,36 @@ SassUnpack.prototype.generateFiles = function(files, mapSass, toPath) {
     });
   }
 
-  if(this.verbose){
-    this.bar.tick(100);
-  }
+  if (this.bMap) {
 
-  return {
-    href: map,
-    sass: buf
-  };
+	this.write(toPath+'/'+this.name+'/sass.map.json', JSON.stringify(buf));
+
+		if (this.bVerbose) {
+			console.log('sass.map.json generated');
+		}
+
+	}
+
+	if (this.bHref) {
+
+	this.write(toPath+'/'+this.name+'/sass.href.json', JSON.stringify(map));
+
+		if (this.bVerbose) {
+			console.log('sass.href.json generated');
+		}
+
+	}
+
+	if (this.bVerbose) {
+		console.log("Done");
+	}
+
+
+
+	return {
+		href: map,
+		sass: buf
+	};
 }
 
 // resolve a sass module to a path

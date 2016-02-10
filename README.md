@@ -16,17 +16,17 @@ Usage as a Node library:
 
 ```js
 var fs = require('fs'),
-  path = require('path'),
-  paths  = require('./paths');
+	path = require('path'),
+	paths  = require('./paths');
 
 var SassUnpack = require('sass-unpack');
 
 var Package = new SassUnpack({
-    src : paths.build.css
+		src : paths.build.css
 });
 
 var map = Package.unpackTo({
-    dest :paths.build.dest
+		dest :paths.build.dest
 });
 
 fs.writeFileSync(path.resolve(paths.build.dir) + '/href.json', JSON.stringify(map.href));
@@ -41,16 +41,14 @@ $ sassunpack --help
 Usage: sassunpack -f <file> [options]
 
 Options:
-  -d, --destination  Path to save the output ( map.json + href.json + files)
-          [défaut: "/Volumes/WORKSPACE/Dropbox/www/dev/project/photobox/studio"]
-  -f, --file         File to unpack                                     [requis]
-  -n, --name         Output directory name                       [défaut: "dev"]
-  -v, --verbose      Debug                                       [défaut: false]
-  --version          Affiche le numéro de version                      [booléen]
-  -h, --help         Affiche de l'aide                                 [booléen]
+	-d, --destination  Path to save the output ( map.json + href.json + files)
+					[défaut: "/Volumes/WORKSPACE/Dropbox/www/dev/project/photobox/studio"]
+	-f, --file         File to unpack                                     [requis]
+	-n, --name         Output directory name                       [défaut: "dev"]
+	-v, --verbose      Debug                                       [défaut: false]
 
 Exemples:
-  sassunpack -f foo.scss  Cut a sass project in multiple css files
+	sassunpack -f foo.scss  Cut a sass project in multiple css files
 
 ```
 
