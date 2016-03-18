@@ -1,32 +1,36 @@
 'use strict';
 
+
 var path = require('path');
-var _ = require('lodash');
-var glob = require('glob');
 var fs = require('fs');
-var util = require('util');
 var mkdirp = require('mkdirp');
+var _ = require('lodash');
+var util = require('util');
+var _ = require('lodash');
 
 function SassUnpack(options) {
 
-  this.filepath = path.resolve(options.src);
+  	this.filepath = path.resolve(options.file);
 
-  if (fs.lstatSync(this.filepath).isFile()) {
+	fs.accessSync(this.filepath);
+
+	if (fs.lstatSync(this.filepath).isFile()) {
 
     options = processOptions(options);
 	this.name = options.name || '_' +path.basename(this.filepath)+'_';
 	this.bVerbose = options.verbose || false ;
 	this.bMap = options.map || false ;
-	this.bHref = options.href || false ;
 	this.bSourceMap = options.sourcemap || false ;
-	this.sourceDir = path.resolve( options.directory || path.dirname(this.filepath)) + '/';
 	this.write = options.write || fs.writeFileSync ;
 	this.mkdir = options.mkdir || mkdirp.sync ;
 	this.output = path.resolve( options.output || path.dirname(this.filepath));
-    this.loadPaths = options.loadPaths || [];
+	this.index = [];
+	this.link = [];
+	this.sourceDir = path.resolve( options.directory || path.dirname(this.filepath)) + '/';
+	this.rootDir = path.resolve( options.root || process.cwd()) + '/';
     this.extensions = options.extensions || [];
-    this.index = [];
-    this.link = [];
+
+	this.bHref = options.href || false ;
 
   }
 };
@@ -39,19 +43,19 @@ SassUnpack.prototype.unpack = function() {
 
   	var SassMap = require('sass-map');
 
-  	var mapSass =  new SassMap(this.filepath);
+  	var SassSourceMap =  new SassMap(this.filepath);
 
 	if (this.bVerbose) {
 		console.log("Unpacking...")
 	}
 
-  	var files = this.cutSourceFileWithMap(this.filepath, mapSass);
+  	var SassFiles = this.cutSourceFileWithMap(this.filepath, SassSourceMap);
 
  	if (this.bVerbose) {
 		console.log("Saving Files...")
 	}
 
-  return this.generateFiles(files, mapSass, this.output);
+  return this.generateFiles(SassFiles, SassSourceMap, this.output);
 
 };
 
@@ -152,19 +156,15 @@ SassUnpack.prototype.generateFiles = function(files, mapSass, toPath) {
   var devFileCSSUrl = this.name+'/css/index.css';
 
   map.push({
-    file: devFilePath,
-    href: devFileCSSUrl
+  	 path: this.filepath,
+  	 dev: devFilePath,
+     url: devFileCSSUrl,
+     name : 'index'
   });
-
-
 
   this.write(devFilePath, files.main.source);
 
-
   files.packages.forEach(function(file) {
-
-    //console.log(mapSass[file.path]);
-    //
 
     file = _.assign(mapSass.index[file.path], file);
 
@@ -174,8 +174,6 @@ SassUnpack.prototype.generateFiles = function(files, mapSass, toPath) {
 
     var devFileCSSUrl = this.name+'/css/' + fileName + '.css';
     var devFilePath = toPath + '/'+this.name+'/scss/' + fileName + '.scss';
-
-
 
     addToIndex(mapIndex, file.path, devFilePath);
 
@@ -217,24 +215,23 @@ SassUnpack.prototype.generateFiles = function(files, mapSass, toPath) {
     this.write(devFilePath, fileContent.join('\n'));
 
     map.push({
-      file: devFilePath,
-      href: devFileCSSUrl
+      path: file.path,
+      url: devFileCSSUrl,
+      dev : devFilePath,
+      name : fileName
     });
+
+
 
   }.bind(this));
 
-  var buf  = [];
-
   for (var i in mapIndex) {
-    buf.push({
-      index: i,
-      links: _.uniq(mapIndex[i])
-    });
+    mapIndex[i] = _.uniq(mapIndex[i]);
   }
 
-  if (this.bMap) {
+	if (this.bMap) {
 
-	this.write(toPath+'/'+this.name+'/sass.map.json', JSON.stringify(buf));
+	this.write(toPath+'/'+this.name+'/sass.map.json', JSON.stringify(map));
 
 		if (this.bVerbose) {
 			console.log('sass.map.json generated');
@@ -244,23 +241,17 @@ SassUnpack.prototype.generateFiles = function(files, mapSass, toPath) {
 
 	if (this.bHref) {
 
-	this.write(toPath+'/'+this.name+'/sass.href.json', JSON.stringify(map));
+	this.write(toPath+'/'+this.name+'/sass.links.json', JSON.stringify(mapIndex));
 
 		if (this.bVerbose) {
-			console.log('sass.href.json generated');
+			console.log('sass.links.json generated');
 		}
 
 	}
 
-	if (this.bVerbose) {
-		console.log("Done");
-	}
-
-
-
 	return {
-		href: map,
-		sass: buf
+		map : map,
+		links : mapIndex
 	};
 }
 
