@@ -154,12 +154,13 @@ SassUnpack.prototype.generateFiles = function(files, mapSass, toPath) {
 
   var devFilePath = toPath + '/'+this.name+'/scss/index.scss';
   var devFileCSSUrl = this.name+'/css/index.css';
+  var fileName = this.name+'/scss/index.scss';
 
   map.push({
   	 path: this.filepath,
   	 dev: devFilePath,
      url: devFileCSSUrl,
-     name : 'index'
+     name : this.filepath.replace(this.sourceDir, '')
   });
 
   this.write(devFilePath, files.main.source);
@@ -218,7 +219,7 @@ SassUnpack.prototype.generateFiles = function(files, mapSass, toPath) {
       path: file.path,
       url: devFileCSSUrl,
       dev : devFilePath,
-      name : fileName
+      name : file.path.replace(this.sourceDir, '')
     });
 
 
@@ -297,4 +298,3 @@ function processOptions(options) {
 }
 
 module.exports =  SassUnpack;
-
