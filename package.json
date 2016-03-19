@@ -1,6 +1,6 @@
 {
 	"name": "sass-unpack",
-	"version": "0.3.4",
+	"version": "0.3.5",
 	"description": "Sass Unpack cut a sass project in multiple css files",
 	"license": "MIT",
 	"repository": {
