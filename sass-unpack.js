@@ -161,9 +161,8 @@ SassUnpack.prototype.generateFiles = function(files, mapSass, toPath) {
   	 path: this.filepath,
   	 tmp: devFilePath,
      url: devFileCSSUrl,
-     src : source,
-     event : source.replace(/([\/|\.|\-])/g, '_')
-  });
+     src : source
+    });
 
   this.write(devFilePath, files.main.source);
 
@@ -222,8 +221,7 @@ SassUnpack.prototype.generateFiles = function(files, mapSass, toPath) {
       path: file.path,
       url: devFileCSSUrl,
       tmp : devFilePath,
-      src : source,
-      event : source.replace(/([\/|\.|\-])/g, '_')
+      src : source
     });
 
 
