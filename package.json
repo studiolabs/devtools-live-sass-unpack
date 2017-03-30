@@ -1,11 +1,11 @@
 {
-	"name": "sass-unpack",
+	"name": "devtools-live-sass-unpack",
 	"version": "0.4.3",
 	"description": "Sass Unpack cut a sass project in multiple css files",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/StudioLabs/sass-unpack"
+		"url": "https://github.com/StudioLabs/devtools-live-sass-unpack"
 	},
 	"author": {
 		"name": "StudioLabs"
@@ -34,9 +34,9 @@
 		"sassunpack": "bin/sassunpack.js"
 	},
 	"bugs": {
-		"url": "https://github.com/StudioLabs/sass-unpack/issues"
+		"url": "https://github.com/StudioLabs/devtools-live-sass-unpack/issues"
 	},
-	"homepage": "https://github.com/StudioLabs/sass-unpack",
+	"homepage": "https://github.com/StudioLabs/devtools-live-sass-unpack",
 	"maintainers": [
 		{
 			"name": "Steed Monteiro",
