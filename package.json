@@ -1,6 +1,6 @@
 {
 	"name": "devtools-live-sass-unpack",
-	"version": "0.4.3",
+	"version": "0.4.5",
 	"description": "Sass Unpack cut a sass project in multiple css files",
 	"license": "MIT",
 	"repository": {
@@ -23,7 +23,7 @@
 		"lodash": "^3.8.0",
 		"mkdirp": "^0.5.1",
 		"progress": "^1.1.8",
-		"sass-map": "^0.3.4",
+		"devtools-live-sass-map": "^0.3.4",
 		"yargs": "^3.30.0"
 	},
 	"devDependencies": {
